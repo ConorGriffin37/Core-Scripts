@@ -290,6 +290,40 @@ local function Initialize()
       end)
   end  -- of createPerformanceStats
 
+	local function createTestFollowOption()  -- HACK
+
+		function GetDesiredPerformanceStatsIndex()
+			local followOption = LocalPlayer:FindFirstChild("FollowOption")
+			if followOption then
+				return followOption.Value
+			else
+				return 2
+			end
+		end
+
+		local startIndex = GetDesiredPerformanceStatsIndex()
+
+		this.ContextSettingFrame,
+		this.ContextLabel,
+		this.ContextMode = utility:AddNewRow(this,
+			"Follow Avatar in Context Menu",
+			"Selector",
+			{"On", "Off"},
+			startIndex)
+
+		this.ContextMode.IndexChanged:connect(function(newIndex)
+			local followOption = LocalPlayer:FindFirstChild("FollowOption")
+			if followOption then
+				followOption.Value = newIndex
+			else
+				followOption = Instance.new("IntValue")
+				followOption.Name = "FollowOption"
+				followOption.Value = newIndex
+				followOption.Parent = LocalPlayer
+			end
+		end)
+	end  -- of createPerformanceStats
+
   local function createCameraModeOptions(movementModeEnabled)
     ------------------------------------------------------
     ------------------
@@ -755,6 +789,8 @@ local function Initialize()
         end)
     end
 
+		createTestFollowOption()
+
     ------------------ Init ------------------
     if AdvancedEnabled then
       local function setMouseModeToBasic()
@@ -945,7 +981,7 @@ local function Initialize()
   if this.PageListLayout then
     this.PageListLayout.Padding = UDim.new(0, 0)
   end
-  
+
   return this
 end
 

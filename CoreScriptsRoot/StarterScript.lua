@@ -49,6 +49,9 @@ scriptContext:AddCoreScriptLocal("CoreScripts/PurchasePromptScript3", RobloxGui)
 scriptContext:AddCoreScriptLocal("CoreScripts/BlockPlayerPrompt", RobloxGui)
 scriptContext:AddCoreScriptLocal("CoreScripts/FriendPlayerPrompt", RobloxGui)
 
+-- Avatar Context Menu
+scriptContext:AddCoreScriptLocal("CoreScripts/AvatarContextMenu", RobloxGui)
+
 -- Backpack!
 spawn(function() safeRequire(RobloxGui.Modules.BackpackScript) end)
 
