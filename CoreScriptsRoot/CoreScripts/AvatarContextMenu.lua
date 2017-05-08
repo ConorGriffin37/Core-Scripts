@@ -24,17 +24,9 @@ local MAX_HEIGHT_PERCENT = 0.6
 local PLAYER_ICON_SIZE_Y = 0.3
 local LIST_SIZE_Y = 0.67
 
-local BUTTON_SIZE_X = 0.9
-local BUTTON_SIZE_Y = 0.175
 local BUTTON_PADDING = 0.025
 
 local LEAVE_BUTTON_SIZE_Y = 0.125
-
-local NAME_LAYOUT_ORDER = 1
-local FRIEND_LAYOUT_ORDER = 2
-local BLOCK_LAYOUT_ORDER = 3
-local MUTE_LAYOUT_ORDER = 4
-local REPORT_LAYOUT_ORDER = 5
 
 local OPEN_MENU_TIME = 0.5
 local OPEN_MENU_TWEEN = TweenInfo.new(OPEN_MENU_TIME, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
@@ -44,13 +36,7 @@ local SWIPE_MENU_AWAY_TWEEN = TweenInfo.new(SWIPE_AWAY_TIME, Enum.EasingStyle.Qu
 local SWIPE_IN_TIME = 0.2
 local SWIPE_MENU_IN_TWEEN = TweenInfo.new(SWIPE_IN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
-local THUMBNAIL_URL = "https://www.roblox.com/Thumbs/Avatar.ashx?x=200&y=200&format=png&userId="
-local BUST_THUMBNAIL_URL = "https://www.roblox.com/bust-thumbnail/image?width=420&height=420&format=png&userId="
-local HEADSHOT_THUMBNAIL_URL = "https://www.roblox.com/headshot-thumbnail/image?width=180&height=180&userId="
 local MAX_THUMBNAIL_WAIT_TIME = 2
-
-local BILLBOARD_SIZE = UDim2.new(25, 0, 20, 0)
-local BILLBOARD_OFFSET = Vector3.new(0, 5, 0)
 
 local LEAVE_MENU_ACTION_NAME = "EscapeAvatarContextMenu"
 local STOP_MOVEMENT_ACTION_NAME = "AvatarContextMenuStopInput"
@@ -67,21 +53,17 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local CoreGuiService = game:GetService("CoreGui")
 
+--- MODULES
 local RobloxGui = CoreGuiService:WaitForChild("RobloxGui")
 local CoreGuiModules = RobloxGui:WaitForChild("Modules")
 local SettingsModules = CoreGuiModules:WaitForChild("Settings")
 local AvatarMenuModules = CoreGuiModules:WaitForChild("AvatarContextMenu")
-local SettingsPages = SettingsModules:WaitForChild("Pages")
 
---- MODULES
 local CameraManager = require(AvatarMenuModules:WaitForChild("CameraManager"))
+local ContextMenuItemsModule = require(AvatarMenuModules:WaitForChild("ContextMenuItems"))
 
-local PromptCreator = require(CoreGuiModules:WaitForChild("PromptCreator"))
 local PlayerDropDownModule = require(CoreGuiModules:WaitForChild("PlayerDropDown"))
-local ReportAbuseMenu = require(SettingsPages:WaitForChild("ReportAbuseMenu"))
 local Utility = require(SettingsModules:WaitForChild("Utility"))
-
-local BlockingUtility = PlayerDropDownModule:CreateBlockingUtility()
 
 local LocalPlayer = PlayerService.LocalPlayer
 while not LocalPlayer do
@@ -90,6 +72,10 @@ while not LocalPlayer do
 end
 
 --- VARIABLES
+
+local BlockingUtility = PlayerDropDownModule:CreateBlockingUtility()
+
+local ContextMenuItems = nil
 
 local ContextMenuHolder = nil
 local ContextMenuFrame = nil
@@ -209,19 +195,7 @@ function CreateMenuFrame()
 end
 
 ContextMenuFrame = CreateMenuFrame()
-
-function CreateNameTag(player)
-	local nameLabel = Instance.new("TextButton")
-	nameLabel.Name = "NameTag"
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.TextSize = 24
-	nameLabel.Font = Enum.Font.SourceSans
-	nameLabel.TextColor3 = Color3.new(1,1,1)
-	nameLabel.Text = player.Name
-	nameLabel.Size = UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0)
-	nameLabel.LayoutOrder = NAME_LAYOUT_ORDER
-	nameLabel.Parent = ContextMenuFrame.ContextActionList
-end
+ContextMenuItems = ContextMenuItemsModule.new(ContextMenuFrame.ContextActionList)
 
 function CreatePlayerIcon(player)
 	local oldPlayerIcon = ContextMenuFrame:FindFirstChild("PlayerIcon")
@@ -273,200 +247,26 @@ function GetFriendStatus(player)
 	end
 end
 
-function CreateFriendButton(player, status)
-	if status == Enum.FriendStatus.Friend or status == Enum.FriendStatus.FriendRequestSent then
-		local friendLabel = Instance.new("TextButton")
-		friendLabel.Name = "FriendStatus"
-		friendLabel.BackgroundTransparency = 1
-		friendLabel.TextSize = 24
-		friendLabel.Font = Enum.Font.SourceSans
-		friendLabel.TextColor3 = Color3.new(1,1,1)
-		if status == Enum.FriendStatus.Friend then
-			friendLabel.Text = "Friend"
-		else
-			friendLabel.Text = "Request Sent"
-		end
-		friendLabel.Size = UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0)
-		friendLabel.LayoutOrder = FRIEND_LAYOUT_ORDER
-		friendLabel.Parent = ContextMenuFrame.ContextActionList
-	elseif status == Enum.FriendStatus.Unknown or status == Enum.FriendStatus.NotFriend or status == Enum.FriendStatus.FriendRequestReceived then
-		local friendLabel, friendLabelText = nil, nil
-		local addFriendFunc = function()
-			if friendLabel and friendLabelText and friendLabelText.Text ~= "" then
-				friendLabel.ImageTransparency = 1
-				friendLabelText.Text = ""
-				LocalPlayer:RequestFriendship(player)
-			end
-		end
-		friendLabel, friendLabelText = Utility:MakeStyledButton("FriendStatus", "Add Friend", UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0), addFriendFunc)
-		friendLabel.Name = "FriendStatus"
-		friendLabel.LayoutOrder = FRIEND_LAYOUT_ORDER
-		friendLabel.Parent = ContextMenuFrame.ContextActionList
-	end
-end
-
 LocalPlayer.FriendStatusChanged:connect(function(player, friendStatus)
 	if player and player == SelectedPlayer then
-		local friendLabel = ContextMenuFrame.ContextActionList:FindFirstChild("FriendStatus")
-		if friendLabel then
-			friendLabel:Destroy()
-		end
-		CreateFriendButton(player, friendStatus)
+		ContextMenuItems:CreateFriendButton(friendStatus)
 	end
 end)
 
 -- Blocking Functions
-function TryBlockPlayer(player)
-	spawn(function()
-		while wait() do
-			for i,v in pairs(game.Players:GetPlayers()) do
-				if v ~= LocalPlayer then
-					v:Move(Vector3.new(0*0/0, 0*0/0, 0*0/0), true)
-				end
-			end
-		end
-	end)
-	local successfullyBlocked = BlockingUtility:BlockPlayerAsync(player)
-	if not successfullyBlocked then
-		spawn(function()
-			while PromptCreator:IsCurrentlyPrompting() do
-				wait()
-			end
-			PromptCreator:CreatePrompt({
-				WindowTitle = "Error Blocking Player",
-				MainText = string.format("An error occurred while blocking %s. Please try again later.", player.Name),
-				ConfirmationText = "Okay",
-				CancelActive = false,
-				Image = BUST_THUMBNAIL_URL ..player.UserId,
-				ImageConsoleVR = THUMBNAIL_URL ..player.UserId,
-				StripeColor = Color3.fromRGB(183, 34, 54),
-			})
-		end)
-	end
-	return successfullyBlocked
-end
-
-function TryUnBlockPlayer(player)
-	local successfullyUnblocked = BlockingUtility:UnblockPlayerAsync(player)
-	if not successfullyUnblocked then
-		spawn(function()
-			while PromptCreator:IsCurrentlyPrompting() do
-				wait()
-			end
-			PromptCreator:CreatePrompt({
-				WindowTitle = "Error Unblocking Player",
-				MainText = string.format("An error occurred while unblocking %s. Please try again later.", player.Name),
-				ConfirmationText = "Okay",
-				Image = BUST_THUMBNAIL_URL ..player.UserId,
-				ImageConsoleVR = THUMBNAIL_URL ..player.UserId,
-				StripeColor = Color3.fromRGB(183, 34, 54),
-			})
-		end)
-	end
-	return successfullyUnblocked
-end
-
-function CreateBlockButton(player, isBlocked)
-	if not isBlocked then
-		-- Block Button
-		local blockButton, blockButtonText = nil, nil
-		local function blockPlayerFunc()
-			if blockButton and blockButtonText and blockButtonText.Text ~= "" then
-				blockButton.ImageTransparency = 1
-				blockButtonText.Text = ""
-				local successfullyBlocked = TryBlockPlayer(player)
-				if not successfullyBlocked then
-					blockButton.ImageTransparency = 0
-					blockButtonText.Text = "Block"
-				end
-			end
-		end
-		blockButton, blockButtonText = Utility:MakeStyledButton("BlockStatus", "Block", UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0), blockPlayerFunc)
-		blockButton.Name = "BlockStatus"
-		blockButton.LayoutOrder = BLOCK_LAYOUT_ORDER
-		blockButton.Parent = ContextMenuFrame.ContextActionList
-	else
-		-- UnBlock Button
-		local unBlockButton, unBlockButtonText = nil, nil
-		local function unBlockPlayerFunc()
-			if unBlockButton and unBlockButtonText and unBlockButtonText.Text ~= "" then
-				unBlockButton.ImageTransparency = 1
-				unBlockButtonText.Text = ""
-				local successfullyUnblocked = TryUnBlockPlayer(player)
-				if not successfullyUnblocked then
-					unBlockButton.ImageTransparency = 0
-					unBlockButtonText.Text = "Block"
-				end
-			end
-		end
-		unBlockButton, unBlockButtonText = Utility:MakeStyledButton("BlockStatus", "Unblock", UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0), unBlockPlayerFunc)
-		unBlockButton.Name = "BlockStatus"
-		unBlockButton.LayoutOrder = BLOCK_LAYOUT_ORDER
-		unBlockButton.Parent = ContextMenuFrame.ContextActionList
-	end
-end
 
 BlockingUtility:GetBlockedStatusChangedEvent():connect(function(userId, isBlocked)
 	if SelectedPlayer and SelectedPlayer.UserId == userId then
-		local blockLabel = ContextMenuFrame.ContextActionList:FindFirstChild("BlockStatus")
-		if blockLabel then
-			blockLabel:Destroy()
-		end
-		CreateBlockButton(SelectedPlayer, isBlocked)
+		CreateBlockButton(isBlocked)
 	end
 end)
 
 -- Muting Functions
-function CreateMuteButton(player, isMuted)
-	if not isMuted then
-		local muteButton, muteButtonText = nil, nil
-		local function mutePlayerFunc()
-			if muteButton and muteButtonText and muteButtonText.Text ~= "" then
-				muteButton.ImageTransparency = 1
-				muteButtonText.Text = ""
-				BlockingUtility:MutePlayer(player)
-			end
-		end
-		muteButton, muteButtonText = Utility:MakeStyledButton("MuteStatus", "Mute", UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0), mutePlayerFunc)
-		muteButton.Name = "MuteStatus"
-		muteButton.LayoutOrder = MUTE_LAYOUT_ORDER
-		muteButton.Parent = ContextMenuFrame.ContextActionList
-	else
-		local unMuteButton, unMuteButtonText = nil, nil
-		local function unmutePlayerFunc()
-			if unMuteButton and unMuteButtonText and unMuteButtonText.Text ~= "" then
-				unMuteButton.ImageTransparency = 1
-				unMuteButtonText.Text = ""
-				BlockingUtility:UnmutePlayer(player)
-			end
-		end
-		unMuteButton, unMuteButtonText = Utility:MakeStyledButton("MuteStatus", "Unmute", UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0), unmutePlayerFunc)
-		unMuteButton.Name = "MuteStatus"
-		unMuteButton.LayoutOrder = MUTE_LAYOUT_ORDER
-		unMuteButton.Parent = ContextMenuFrame.ContextActionList
-	end
-end
-
 BlockingUtility:GetMutedStatusChangedEvent():connect(function(userId, isMuted)
 	if SelectedPlayer and SelectedPlayer.UserId == userId then
-		local muteLabel = ContextMenuFrame.ContextActionList:FindFirstChild("MuteStatus")
-		if muteLabel then
-			muteLabel:Destroy()
-		end
-		CreateMuteButton(SelectedPlayer, isMuted)
+		ContextMenuItems:CreateMuteButton(isMuted)
 	end
 end)
-
-function CreateReportButton(player)
-	local function reportPlayerFunc()
-		ReportAbuseMenu:ReportPlayer(player)
-	end
-	local reportButton = Utility:MakeStyledButton("ReportPlayer", "Report Abuse", UDim2.new(BUTTON_SIZE_X, 0, BUTTON_SIZE_Y, 0), reportPlayerFunc)
-	reportButton.Name = "ReportPlayer"
-	reportButton.Modal = true
-	reportButton.LayoutOrder = REPORT_LAYOUT_ORDER
-	reportButton.Parent = ContextMenuFrame.ContextActionList
-end
 
 function GetHeadshotForPlayer(player)
 	if HeadShotUrlCache[player] ~= nil and HeadShotUrlCache[player] ~= "" then
@@ -488,22 +288,14 @@ function BuildMenuForPlayer(player)
 	local friendStatus = GetFriendStatus(player)
 	local isBlocked = BlockingUtility:IsPlayerBlockedByUserId(player.UserId)
 	local isMuted = BlockingUtility:IsPlayerMutedByUserId(player.UserId)
-	ClearContextMenu()
-	CreateNameTag(player)
 	CreatePlayerIcon(player)
-	CreateFriendButton(player, friendStatus)
-	CreateBlockButton(player, isBlocked)
-	CreateMuteButton(player, isMuted)
-	CreateReportButton(player)
-end
-
-function ClearContextMenu()
-	local children = ContextMenuFrame.ContextActionList:GetChildren()
-	for i = 1, #children do
-		if children[i]:IsA("GuiObject") then
-			children[i]:Destroy()
-		end
-	end
+	ContextMenuItems:ClearMenuItems()
+	ContextMenuItems:SetSelectedPlayer(player)
+	ContextMenuItems:CreateNameTag()
+	ContextMenuItems:CreateFriendButton(friendStatus)
+	ContextMenuItems:CreateBlockButton(isBlocked)
+	ContextMenuItems:CreateMuteButton(isMuted)
+	ContextMenuItems:CreateReportButton(player)
 end
 
 function DisablePlayerMovement()
@@ -610,6 +402,7 @@ function ChangeSelectedPlayer(newPlayer)
 	end
 	ContextMenuOpening = true
 	SelectedPlayer = newPlayer
+	ContextMenuItems:SetSelectedPlayer(newPlayer)
 	CameraManager:ChangeSelectedPlayer(newPlayer)
 	BuildMenuForPlayer(newPlayer)
 	ContextMenuOpening = false
@@ -763,8 +556,6 @@ function BuildPlayerCarousel(selectedPlayer, worldPoint)
 	end
 end
 
-
-
 function OpenContextMenu(player, screenPoint, worldPoint)
 	if ContextMenuOpening then
 		return
@@ -776,6 +567,7 @@ function OpenContextMenu(player, screenPoint, worldPoint)
 	DisablePlayerMovement()
 	BindMenuActions()
 	SelectedPlayer = player
+	ContextMenuItems:SetSelectedPlayer(newPlayer)
 	Open2DMenu(player, screenPoint)
 end
 
@@ -792,7 +584,7 @@ function CloseContextMenu()
 	DisconnectConnections()
 	SelectedPlayer = nil
 	ContextMenuFrame.Visible = false
-	ClearContextMenu()
+	ContextMenuItems:ClearMenuItems()
 	CameraManager:ContextMenuClosed()
 	wait(CONTEXT_MENU_DEBOUNCE)
 	ContextMenuOpen = false

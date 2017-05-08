@@ -27,7 +27,7 @@ local PlayersService = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 -- VARIABLES
-LocalPlayer = PlayersService.LocalPlayer
+local LocalPlayer = PlayersService.LocalPlayer
 while not LocalPlayer do
 	PlayersService.PlayerAdded:wait()
 	LocalPlayer = PlayersService.LocalPlayer
