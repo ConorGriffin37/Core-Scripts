@@ -206,7 +206,7 @@ function ContextMenuItems:CreateMuteButton(isMuted)
 			if unMuteButton and unMuteButtonText and unMuteButtonText.Text ~= "" then
 				unMuteButton.ImageTransparency = 1
 				unMuteButtonText.Text = ""
-				BlockingUtility:UnmutePlayer(player)
+				BlockingUtility:UnmutePlayer(self.SelectedPlayer)
 			end
 		end
 		unMuteButton, unMuteButtonText = Utility:MakeStyledButton("MuteStatus", "Unmute", UDim2.new(MENU_ITEM_SIZE_X, 0, MENU_ITEM_SIZE_Y, 0), unmutePlayerFunc)

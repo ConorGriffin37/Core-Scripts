@@ -257,7 +257,7 @@ end)
 
 BlockingUtility:GetBlockedStatusChangedEvent():connect(function(userId, isBlocked)
 	if SelectedPlayer and SelectedPlayer.UserId == userId then
-		CreateBlockButton(isBlocked)
+		ContextMenuItems:CreateBlockButton(isBlocked)
 	end
 end)
 
@@ -567,7 +567,7 @@ function OpenContextMenu(player, screenPoint, worldPoint)
 	DisablePlayerMovement()
 	BindMenuActions()
 	SelectedPlayer = player
-	ContextMenuItems:SetSelectedPlayer(newPlayer)
+	ContextMenuItems:SetSelectedPlayer(player)
 	Open2DMenu(player, screenPoint)
 end
 
