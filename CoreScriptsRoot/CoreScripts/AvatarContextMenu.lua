@@ -49,7 +49,6 @@ local CONTEXT_MENU_DEBOUNCE = 0.3  -- Time before you can reopen the menu after 
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
 local PlayerService = game:GetService("Players")
-local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local CoreGuiService = game:GetService("CoreGui")
 
