@@ -4,7 +4,15 @@
 	// Description: Module for managing the camera for the AvatarContextMenu.
 ]]
 
+--- OPTIONS:
+local FOLLOW_ON_OVERRIDE = true
+local DO_CAMERA_PAN = false
+local DO_PAN_SWITCH_TO_LOCAL_PLAYER = true
+
 --- CONSTANTS:
+local MAX_SELECTED_PLAYER_PAN_DISTANCE = 50
+local MAX_PAN_DEGREES = 45
+
 local FOLLOW_FLIP_MODE_ENABLED = true
 -- If FOLLOW_FLIP_MODE_ENABLED is disabled, FOLLOW_FRONT_VIEW toggles the front or back view.
 local FOLLOW_FRONT_VIEW = false
@@ -37,6 +45,9 @@ local CameraManager = {}
 CameraManager.__index = CameraManager
 
 function CameraManager:GetFollowEnabled()
+	if FOLLOW_ON_OVERRIDE ~= nil then
+		return FOLLOW_ON_OVERRIDE
+	end
 	local followOption = LocalPlayer:FindFirstChild("FollowOption")
 	if followOption and followOption.Value == 1 then
 		return true
@@ -124,7 +135,7 @@ function CameraManager:UpdateCameraPosition(currentCamera, selectedPlayerRootPar
 	end
 end
 
-function CameraManager:ConnectRenderSteppedFunction()
+function CameraManager:ConnectFollowRenderSteppedFunction()
 	self.RenderSteppedConnection = RunService.RenderStepped:connect(function(delta)
 		local currentCamera = game.Workspace.CurrentCamera
 		if not currentCamera then
@@ -145,7 +156,70 @@ function CameraManager:SetupFollowCamera()
 	if currentCamera then
 		currentCamera.CameraType = Enum.CameraType.Scriptable
 	end
-	self:ConnectRenderSteppedFunction()
+	self:ConnectFollowRenderSteppedFunction()
+end
+
+function CameraManager:GetAngleBetweenVectors(vectorA, vectorB)
+	local dot = vectorA:Dot(vectorB)
+	return math.abs(math.deg(math.acos(dot / (vectorA.magnitude * vectorB.magnitude))))
+end
+
+function CameraManager:GetPanCameraCFrame(selectedPlayerRootPart, localPlayerRootPart, currentCamera)
+	local cameraPosition = (CFrame.new(localPlayerRootPart.Position) * self.OriginalCameraOffset).p
+	local lookAtLocalPlayerCFrame = CFrame.new(cameraPosition, localPlayerRootPart.Position)
+	local lookAtSelectedPlayerCFrame = CFrame.new(cameraPosition, selectedPlayerRootPart.Position)
+	local angleBetween = CameraManager:GetAngleBetweenVectors(lookAtLocalPlayerCFrame.lookVector, lookAtSelectedPlayerCFrame.lookVector)
+	local distanceAway = (cameraPosition - selectedPlayerRootPart.Position).magnitude
+	print("Angle:", angleBetween)
+	if distanceAway < MAX_SELECTED_PLAYER_PAN_DISTANCE and angleBetween < MAX_PAN_DEGREES then
+		return lookAtSelectedPlayerCFrame
+	end
+	if DO_PAN_SWITCH_TO_LOCAL_PLAYER then
+		return lookAtLocalPlayerCFrame
+	end
+	if angleBetween < MAX_PAN_DEGREES then
+		return lookAtSelectedPlayerCFrame
+	end
+	local percent = MAX_PAN_DEGREES/angleBetween
+	print("Percent:", percent)
+	local testCFrame = lookAtLocalPlayerCFrame:lerp(lookAtSelectedPlayerCFrame, percent)
+	return testCFrame
+end
+
+function CameraManager:ConnectPanRenderSteppedFunction()
+	self.RenderSteppedConnection = RunService.RenderStepped:connect(function()
+		local selectedPlayerRootPart = self:GetSelectedPlayerRootPart()
+		local currentCamera = Workspace.CurrentCamera
+		local localPlayerRootPart = self:GetLocalPlayerRootPart()
+		if selectedPlayerRootPart and localPlayerRootPart and currentCamera then
+			local cameraCFrame = self:GetPanCameraCFrame(selectedPlayerRootPart, localPlayerRootPart, currentCamera)
+			if cameraCFrame then
+				currentCamera.CFrame = cameraCFrame
+			end
+		end
+	end)
+end
+
+function CameraManager:GetLocalPlayerRootPart()
+	if LocalPlayer.Character then
+		local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if humanoidRootPart then
+			return humanoidRootPart
+		end
+	end
+end
+
+function CameraManager:SetupCameraPan()
+	local localPlayerRootPart = self:GetLocalPlayerRootPart()
+	if localPlayerRootPart then
+		local currentCamera = Workspace.CurrentCamera
+		if currentCamera then
+			self.DidModifyCamera = true
+			currentCamera.CameraType = Enum.CameraType.Scriptable
+			self.OriginalCameraOffset = currentCamera.CFrame - localPlayerRootPart.Position
+			self:ConnectPanRenderSteppedFunction()
+		end
+	end
 end
 
 function CameraManager:ResetCamera()
@@ -185,10 +259,13 @@ function CameraManager:DisabeCameraPanning()
 	end
 end
 
-function CameraManager:ContextMenuOpened()
+function CameraManager:ContextMenuOpened(player)
+	self.SelectedPlayer = player
 	self.FollowCameraEnabled = self:GetFollowEnabled()
 	if self.FollowCameraEnabled then
 		self:SetupFollowCamera()
+	elseif DO_CAMERA_PAN then
+		self:SetupCameraPan()
 	end
 end
 

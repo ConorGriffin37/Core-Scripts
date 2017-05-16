@@ -6,6 +6,7 @@
 
 -- OPTIONS
 local DEBUG_MODE = true
+local SIMS_STYLE_MENU = false
 
 -- CONSTANTS
 local CONEXT_MENU_DISPLAY_ORDER = 7
@@ -59,6 +60,7 @@ local SettingsModules = CoreGuiModules:WaitForChild("Settings")
 local AvatarMenuModules = CoreGuiModules:WaitForChild("AvatarContextMenu")
 
 local CameraManager = require(AvatarMenuModules:WaitForChild("CameraManager"))
+local SimsStyleMenuModule = require(AvatarMenuModules:WaitForChild("SimsStyleMenu"))
 local ContextMenuItemsModule = require(AvatarMenuModules:WaitForChild("ContextMenuItems"))
 
 local PlayerDropDownModule = require(CoreGuiModules:WaitForChild("PlayerDropDown"))
@@ -75,6 +77,7 @@ end
 local BlockingUtility = PlayerDropDownModule:CreateBlockingUtility()
 
 local ContextMenuItems = nil
+local SimsStyleMenu = nil
 
 local ContextMenuHolder = nil
 local ContextMenuFrame = nil
@@ -147,6 +150,17 @@ function CreateSwitchPlayerArrows(frame)
 end
 
 function CreateMenuFrame()
+	if SIMS_STYLE_MENU then
+		local frame = Instance.new("Frame")
+		frame.Name = "Menu"
+		frame.Size = UDim2.new(1, 0, 1, 0)
+		frame.BackgroundTransparency = 1
+		frame.Visible = false
+		frame.Parent = ContextMenuHolder
+		SimsStyleMenu = SimsStyleMenuModule.new(frame)
+		return frame
+	end
+
 	local frame = Instance.new("Frame")
 	frame.Name = "Menu"
 	frame.Size = UDim2.new(MAX_WIDTH_PERCENT, 0, MAX_HEIGHT_PERCENT, 0)
@@ -194,7 +208,9 @@ function CreateMenuFrame()
 end
 
 ContextMenuFrame = CreateMenuFrame()
-ContextMenuItems = ContextMenuItemsModule.new(ContextMenuFrame.ContextActionList)
+if not SIMS_STYLE_MENU then
+	ContextMenuItems = ContextMenuItemsModule.new(ContextMenuFrame.ContextActionList)
+end
 
 function CreatePlayerIcon(player)
 	local oldPlayerIcon = ContextMenuFrame:FindFirstChild("PlayerIcon")
@@ -248,7 +264,11 @@ end
 
 LocalPlayer.FriendStatusChanged:connect(function(player, friendStatus)
 	if player and player == SelectedPlayer then
-		ContextMenuItems:CreateFriendButton(friendStatus)
+		if SIMS_STYLE_MENU then
+			SimsStyleMenu:CreateFriendButton(friendStatus)
+		else
+			ContextMenuItems:CreateFriendButton(friendStatus)
+		end
 	end
 end)
 
@@ -256,14 +276,22 @@ end)
 
 BlockingUtility:GetBlockedStatusChangedEvent():connect(function(userId, isBlocked)
 	if SelectedPlayer and SelectedPlayer.UserId == userId then
-		ContextMenuItems:CreateBlockButton(isBlocked)
+		if SIMS_STYLE_MENU then
+			SimsStyleMenu:CreateBlockButton(isBlocked)
+		else
+			ContextMenuItems:CreateBlockButton(isBlocked)
+		end
 	end
 end)
 
 -- Muting Functions
 BlockingUtility:GetMutedStatusChangedEvent():connect(function(userId, isMuted)
 	if SelectedPlayer and SelectedPlayer.UserId == userId then
-		ContextMenuItems:CreateMuteButton(isMuted)
+		if SIMS_STYLE_MENU then
+			SimsStyleMenu:CreateMuteButton(isMuted)
+		else
+			ContextMenuItems:CreateMuteButton(isMuted)
+		end
 	end
 end)
 
@@ -365,28 +393,32 @@ function BindMenuActions()
 	ContextActionService:BindCoreAction(LEAVE_MENU_ACTION_NAME, closeMenuFunc, false, Enum.KeyCode.Escape)
 
 	-- Carousel Movement
-	local function switchPlayerLeftFunc(actionName, inputState, input)
-		if inputState ~= Enum.UserInputState.Begin then
-			return
+	if not SIMS_STYLE_MENU then
+		local function switchPlayerLeftFunc(actionName, inputState, input)
+			if inputState ~= Enum.UserInputState.Begin then
+				return
+			end
+			MovePlayerCarousel(-1)
 		end
-		MovePlayerCarousel(-1)
-	end
-	ContextActionService:BindCoreAction(SWITCH_PLAYER_LEFT_ACTION_NAME, switchPlayerLeftFunc, false, Enum.KeyCode.Left)
-	local function switchPlayerRightFunc(actionName, inputState, input)
-		if inputState ~= Enum.UserInputState.Begin then
-			return
+		ContextActionService:BindCoreAction(SWITCH_PLAYER_LEFT_ACTION_NAME, switchPlayerLeftFunc, false, Enum.KeyCode.Left)
+		local function switchPlayerRightFunc(actionName, inputState, input)
+			if inputState ~= Enum.UserInputState.Begin then
+				return
+			end
+			MovePlayerCarousel(1)
 		end
-		MovePlayerCarousel(1)
+		ContextActionService:BindCoreAction(SWITCH_PLAYER_RIGHT_ACTION_NAME, switchPlayerRightFunc, false, Enum.KeyCode.Right)
 	end
-	ContextActionService:BindCoreAction(SWITCH_PLAYER_RIGHT_ACTION_NAME, switchPlayerRightFunc, false, Enum.KeyCode.Right)
 end
 
 function UnBindContextActions()
 	-- Enable movement
 	ContextActionService:UnbindAction(STOP_MOVEMENT_ACTION_NAME)
 	ContextActionService:UnbindCoreAction(LEAVE_MENU_ACTION_NAME)
-	ContextActionService:UnbindCoreAction(SWITCH_PLAYER_LEFT_ACTION_NAME)
-	ContextActionService:UnbindCoreAction(SWITCH_PLAYER_RIGHT_ACTION_NAME)
+	if not SIMS_STYLE_MENU then
+		ContextActionService:UnbindCoreAction(SWITCH_PLAYER_LEFT_ACTION_NAME)
+		ContextActionService:UnbindCoreAction(SWITCH_PLAYER_RIGHT_ACTION_NAME)
+	end
 end
 
 function ChangeSelectedPlayer(newPlayer)
@@ -561,15 +593,20 @@ function OpenContextMenu(player, screenPoint, worldPoint)
 	end
 
 	ContextMenuOpen = true
-	CameraManager:ContextMenuOpened()
-	BuildPlayerCarousel(player, worldPoint)
+	CameraManager:ContextMenuOpened(player)
+	if SIMS_STYLE_MENU then
+		SimsStyleMenu:ContextMenuOpened(player)
+	else
+		BuildPlayerCarousel(player, worldPoint)
+	end
 	DisablePlayerMovement()
 	BindMenuActions()
 	SelectedPlayer = player
-	ContextMenuItems:SetSelectedPlayer(player)
-	Open2DMenu(player, screenPoint)
+	if not SIMS_STYLE_MENU then
+		ContextMenuItems:SetSelectedPlayer(player)
+		Open2DMenu(player, screenPoint)
+	end
 end
-
 
 function DisconnectConnections()
 	if TouchSwipeConnection then
@@ -583,7 +620,11 @@ function CloseContextMenu()
 	DisconnectConnections()
 	SelectedPlayer = nil
 	ContextMenuFrame.Visible = false
-	ContextMenuItems:ClearMenuItems()
+	if SIMS_STYLE_MENU then
+		SimsStyleMenu:ContextMenuClosed()
+	else
+		ContextMenuItems:ClearMenuItems()
+	end
 	CameraManager:ContextMenuClosed()
 	wait(CONTEXT_MENU_DEBOUNCE)
 	ContextMenuOpen = false
@@ -606,12 +647,8 @@ function CheckIfPointIsInSquare(checkPos, topLeft, bottomRight)
 		topLeft.Y <= checkPos.Y and checkPos.Y <= bottomRight.Y)
 end
 
-function ScreenPointInMenu(screenPoint)
-	return CheckIfPointIsInSquare(screenPoint, ContextMenuFrame.AbsolutePosition, ContextMenuFrame.AbsolutePosition + ContextMenuFrame.AbsoluteSize)
-end
-
 function OnUserInput(screenPoint)
-	if ContextMenuOpen and ScreenPointInMenu(screenPoint) then
+	if ContextMenuOpen and not SIMS_STYLE_MENU then
 		return
 	end
 	local camera = game.Workspace.CurrentCamera
@@ -625,6 +662,8 @@ function OnUserInput(screenPoint)
 				local screenPoint = camera:WorldToScreenPoint(hitPoint)
 				OpenContextMenu(player, Vector2.new(screenPoint.X, screenPoint.Y), hitPoint)
 			end
+		elseif SIMS_STYLE_MENU and ContextMenuOpen then
+			CloseContextMenu()
 		end
 	end
 end
