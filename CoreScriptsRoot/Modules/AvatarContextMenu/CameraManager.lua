@@ -5,9 +5,9 @@
 ]]
 
 --- OPTIONS:
-local FOLLOW_ON_OVERRIDE = true
+local FOLLOW_ON_OVERRIDE = false
 local DO_CAMERA_PAN = false
-local DO_PAN_SWITCH_TO_LOCAL_PLAYER = true
+local DO_PAN_SWITCH_TO_LOCAL_PLAYER = false
 
 --- CONSTANTS:
 local MAX_SELECTED_PLAYER_PAN_DISTANCE = 50

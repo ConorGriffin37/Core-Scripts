@@ -124,7 +124,7 @@ function CreateLeaveMenuButton(frame)
 end
 
 function CreateSwitchPlayerArrows(frame)
-	local leftArrowLabel = Instance.new("ImageLabel")
+	local leftArrowLabel = Instance.new("ImageButton")
 	leftArrowLabel.Name = "LeftArrowLabel"
 	leftArrowLabel.BackgroundTransparency = 1
 	leftArrowLabel.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -134,11 +134,19 @@ function CreateSwitchPlayerArrows(frame)
 	leftArrowLabel.Image = "rbxassetid://471630112"
 	leftArrowLabel.Parent = frame
 
+	leftArrowLabel.MouseButton1Click:connect(function()
+		MovePlayerCarousel(-1)
+	end)
+
 	local rightArrowLabel = leftArrowLabel:Clone()
 	rightArrowLabel.Name = "RightArrowLabel"
 	rightArrowLabel.Rotation = 0
 	rightArrowLabel.Position =  UDim2.new(1.1, 0, 0.5, 0)
 	rightArrowLabel.Parent = frame
+
+	rightArrowLabel.MouseButton1Click:connect(function()
+		MovePlayerCarousel(1)
+	end)
 
 	local aspectConstraint = Instance.new("UIAspectRatioConstraint")
 	aspectConstraint.AspectType = Enum.AspectType.FitWithinMaxSize
